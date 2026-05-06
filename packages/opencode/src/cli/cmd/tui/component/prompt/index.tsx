@@ -180,6 +180,7 @@ export function Prompt(props: PromptProps) {
     mode: "normal" | "shell"
     extmarkToPartIndex: Map<number, number>
     interrupt: number
+    exitConfirm: number
     placeholder: number
   }>({
     placeholder: randomIndex(list().length),
@@ -190,6 +191,7 @@ export function Prompt(props: PromptProps) {
     mode: "normal",
     extmarkToPartIndex: new Map(),
     interrupt: 0,
+    exitConfirm: 0,
   })
 
   createEffect(
@@ -1033,12 +1035,18 @@ export function Prompt(props: PromptProps) {
                   return
                 }
                 if (keybind.match("app_exit", e)) {
-                  if (store.prompt.input === "") {
+                  setStore("exitConfirm", store.exitConfirm + 1)
+                  setTimeout(() => {
+                    setStore("exitConfirm", 0)
+                  }, 5000)
+                  if (store.exitConfirm >= 2) {
+                    setStore("exitConfirm", 0)
                     await exit()
-                    // Don't preventDefault - let textarea potentially handle the event
                     e.preventDefault()
                     return
                   }
+                  e.preventDefault()
+                  return
                 }
                 if (e.name === "!" && input.visualCursor.offset === 0) {
                   setStore("placeholder", randomIndex(shell().length))
@@ -1332,32 +1340,42 @@ export function Prompt(props: PromptProps) {
           </Show>
           <Show when={status().type !== "retry"}>
             <box gap={2} flexDirection="row">
-              <Switch>
-                <Match when={store.mode === "normal"}>
+              <Show
+                when={store.exitConfirm > 0}
+                fallback={
                   <Switch>
-                    <Match when={usage()}>
-                      {(item) => (
-                        <text fg={theme.textMuted} wrapMode="none">
-                          {[item().context, item().cost].filter(Boolean).join(" · ")}
-                        </text>
-                      )}
-                    </Match>
-                    <Match when={true}>
+                    <Match when={store.mode === "normal"}>
+                      <Switch>
+                        <Match when={usage()}>
+                          {(item) => (
+                            <text fg={theme.textMuted} wrapMode="none">
+                              {[item().context, item().cost].filter(Boolean).join(" · ")}
+                            </text>
+                          )}
+                        </Match>
+                        <Match when={true}>
+                          <text fg={theme.text}>
+                            {keybind.print("agent_cycle")} <span style={{ fg: theme.textMuted }}>agents</span>
+                          </text>
+                        </Match>
+                      </Switch>
                       <text fg={theme.text}>
-                        {keybind.print("agent_cycle")} <span style={{ fg: theme.textMuted }}>agents</span>
+                        {keybind.print("command_list")} <span style={{ fg: theme.textMuted }}>commands</span>
+                      </text>
+                    </Match>
+                    <Match when={store.mode === "shell"}>
+                      <text fg={theme.text}>
+                        esc <span style={{ fg: theme.textMuted }}>exit shell mode</span>
                       </text>
                     </Match>
                   </Switch>
-                  <text fg={theme.text}>
-                    {keybind.print("command_list")} <span style={{ fg: theme.textMuted }}>commands</span>
-                  </text>
-                </Match>
-                <Match when={store.mode === "shell"}>
-                  <text fg={theme.text}>
-                    esc <span style={{ fg: theme.textMuted }}>exit shell mode</span>
-                  </text>
-                </Match>
-              </Switch>
+                }
+              >
+                <text fg={theme.primary}>
+                  {keybind.print("app_exit")}{" "}
+                  <span style={{ fg: theme.primary }}>again to exit</span>
+                </text>
+              </Show>
             </box>
           </Show>
         </box>

@@ -15,7 +15,10 @@ export const ServeCommand = cmd({
     const server = await Server.listen(opts)
     console.log(`opencode server listening on http://${server.hostname}:${server.port}`)
 
-    await new Promise(() => {})
+    await new Promise<void>((resolve) => {
+      process.once("SIGTERM", resolve)
+      process.once("SIGINT", resolve)
+    })
     await server.stop()
   },
 })
