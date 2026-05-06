@@ -1,5 +1,6 @@
 // @refresh reload
 
+import { Router } from "@solidjs/router"
 import { render } from "solid-js/web"
 import { AppBaseProviders, AppInterface } from "@/app"
 import { type Platform, PlatformProvider } from "@/context/platform"
@@ -125,6 +126,9 @@ const platform: Platform = {
   setDefaultServer: writeDefaultServerUrl,
 }
 
+
+const routerBase = location.pathname.match(/^(\/proxy\/\d+)/)?.[1]
+
 if (root instanceof HTMLElement) {
   const server: ServerConnection.Http = { type: "http", http: { url: getCurrentUrl() } }
   render(
@@ -134,6 +138,7 @@ if (root instanceof HTMLElement) {
           <AppInterface
             defaultServer={ServerConnection.Key.make(getDefaultUrl())}
             servers={[server]}
+            router={routerBase ? (p) => <Router base={routerBase} {...p} /> : undefined}
             disableHealthCheck
           />
         </AppBaseProviders>
