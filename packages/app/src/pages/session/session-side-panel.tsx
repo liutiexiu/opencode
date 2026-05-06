@@ -178,6 +178,27 @@ export function SessionSidePanel(props: {
     setStore("activeDraggable", undefined)
   }
 
+  const handleOpenFile = (e: Event) => {
+    const { path } = (e as CustomEvent<{ path: string }>).detail
+    if (!path) return
+    openTab(`file://${path}`)
+  }
+
+  const handleOpenDiff = (e: Event) => {
+    const { path } = (e as CustomEvent<{ path: string }>).detail
+    if (!path) return
+    openReviewPanel()
+    props.focusReviewDiff(path)
+  }
+
+  window.addEventListener("opencode:openFile", handleOpenFile)
+  window.addEventListener("opencode:openDiff", handleOpenDiff)
+
+  onCleanup(() => {
+    window.removeEventListener("opencode:openFile", handleOpenFile)
+    window.removeEventListener("opencode:openDiff", handleOpenDiff)
+  })
+
   createEffect(() => {
     if (!file.ready()) return
 

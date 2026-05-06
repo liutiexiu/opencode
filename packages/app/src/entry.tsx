@@ -1,7 +1,9 @@
 // @refresh reload
 
 import { Router } from "@solidjs/router"
+import { createEffect } from "solid-js"
 import { render } from "solid-js/web"
+import { useTheme } from "@opencode-ai/ui/theme/context"
 import { AppBaseProviders, AppInterface } from "@/app"
 import { type Platform, PlatformProvider } from "@/context/platform"
 import { dict as en } from "@/i18n/en"
@@ -129,12 +131,24 @@ const platform: Platform = {
 
 const routerBase = location.pathname.match(/^(\/proxy\/\d+)/)?.[1]
 
+
+function ThemeBridge() {
+  const theme = useTheme()
+  createEffect(() => {
+    ;(window as any).__oc_setTheme = theme.setTheme
+    ;(window as any).__oc_setColorScheme = theme.setColorScheme
+
+  })
+  return null
+}
+
 if (root instanceof HTMLElement) {
   const server: ServerConnection.Http = { type: "http", http: { url: getCurrentUrl() } }
   render(
     () => (
       <PlatformProvider value={platform}>
         <AppBaseProviders>
+          <ThemeBridge />
           <AppInterface
             defaultServer={ServerConnection.Key.make(getDefaultUrl())}
             servers={[server]}
