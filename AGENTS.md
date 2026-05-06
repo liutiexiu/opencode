@@ -1,8 +1,23 @@
 - To regenerate the JavaScript SDK, run `./packages/sdk/js/script/build.ts`.
+- The `opencode` binary in use is compiled from local source (current tag: `v1.4.11`), NOT installed from npm. Build command: `OPENCODE_VERSION=1.4.11 ./packages/opencode/script/build.ts --single --skip-install`. Install with `./install-ubuntu-local.sh` which copies the binary to `~/.local/bin/opencode-versions/<git-hash>/` and updates the symlink at `~/.local/bin/opencode`.
+- Because the binary is built with `OPENCODE_VERSION=1.4.11`, `InstallationChannel` = `dev` and `InstallationLocal` = `false`. The runtime will install `@opencode-ai/plugin@1.4.11` into `~/.config/opencode/node_modules`. If node_modules contains a mismatched version, delete `~/.config/opencode/node_modules` and `~/.config/opencode/package-lock.json` and restart.
 - ALWAYS USE PARALLEL TOOLS WHEN APPLICABLE.
 - The default branch in this repo is `dev`.
 - Local `main` ref may not exist; use `dev` or `origin/dev` for diffs.
 - Prefer automation: execute requested actions without confirmation unless blocked by missing info or safety/irreversibility.
+
+## Build & Install
+
+**MANDATORY**: Before building or installing the opencode binary, ALWAYS load the `build-opencode-local` skill first:
+
+```
+skill(name="build-opencode-local")
+```
+
+Never execute build/install commands from memory. The skill defines the complete workflow: Build → Install → Validate → Cleanup/Rollback. Skipping any step is a violation.
+
+- `Text file busy` during install means the old binary is still in use — stop the process holding it first, then run `./install-ubuntu-local.sh` normally. Do not work around it with `rm -f + cp`.
+- Do not restart `opencode-daemon.service` (the Python proxy) as part of the build workflow — it is unrelated to the opencode binary.
 
 ## Style Guide
 
