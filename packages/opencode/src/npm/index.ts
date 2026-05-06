@@ -7,8 +7,11 @@ import { NodeFileSystem } from "@effect/platform-node"
 import { AppFileSystem } from "@opencode-ai/shared/filesystem"
 import { Global } from "@opencode-ai/shared/global"
 import { EffectFlock } from "@opencode-ai/shared/util/effect-flock"
+import { Log } from "../util"
 
 import { makeRuntime } from "../effect/runtime"
+
+const log = Log.create({ service: "npm" })
 
 export class InstallFailedError extends Schema.TaggedErrorClass<InstallFailedError>()("NpmInstallFailedError", {
   add: Schema.Array(Schema.String).pipe(Schema.optional),
@@ -136,9 +139,23 @@ export const layer = Layer.effect(
     const add = Effect.fn("Npm.add")(function* (pkg: string) {
       const dir = directory(pkg)
 
+      // Parse out the bare package name (strip version spec) to check if already installed.
+      // e.g. "oh-my-opencode@latest" -> "oh-my-opencode", "@scope/pkg@1.2.3" -> "@scope/pkg"
+      const parsedName = pkg.startsWith("@")
+        ? pkg.replace(/@[^/]+$/, (m, offset) => (offset === 0 ? m : ""))
+        : pkg.replace(/@.*$/, "")
+      const pkgDir = path.join(dir, "node_modules", parsedName)
+      const alreadyInstalled = yield* fs.exists(pkgDir).pipe(Effect.orElseSucceed(() => false))
+      if (alreadyInstalled) {
+        log.info("Npm.add skip reify, already installed", { pkg, pkgDir })
+        return resolveEntryPoint(parsedName, pkgDir)
+      }
+
+      log.info("Npm.add reify", { pkg, dir })
       const tree = yield* reify({ dir, add: [pkg] })
       const first = tree.edgesOut.values().next().value?.to
       if (!first) return yield* new InstallFailedError({ add: [pkg], dir })
+      log.info("Npm.add reify done", { pkg, name: first.name, path: first.path })
       return resolveEntryPoint(first.name, first.path)
     }, Effect.scoped)
 
@@ -153,7 +170,9 @@ export const layer = Layer.effect(
       yield* Effect.gen(function* () {
         const nodeModulesExists = yield* afs.existsSafe(path.join(dir, "node_modules"))
         if (!nodeModulesExists) {
+          log.info("installing dependencies", { dir, add })
           yield* reify({ add, dir })
+          log.info("dependencies installed", { dir })
           return
         }
       }).pipe(Effect.withSpan("Npm.checkNodeModules"))
@@ -182,7 +201,9 @@ export const layer = Layer.effect(
 
         for (const name of declared) {
           if (!locked.has(name)) {
+            log.info("dependencies outdated, reinstalling", { dir, add })
             yield* reify({ dir, add })
+            log.info("dependencies reinstalled", { dir })
             return
           }
         }

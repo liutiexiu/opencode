@@ -10,6 +10,9 @@ import {
 } from "./shared"
 import { ConfigPlugin } from "@/config/plugin"
 import { InstallationVersion } from "@/installation/version"
+import { Log } from "@/util"
+
+const log = Log.create({ service: "plugin.loader" })
 
 export namespace PluginLoader {
   // A normalized plugin declaration derived from config before any filesystem or npm work happens.
@@ -74,23 +77,28 @@ export namespace PluginLoader {
     | { ok: false; stage: "missing"; value: Missing }
     | { ok: false; stage: "install" | "entry" | "compatibility"; error: unknown }
   > {
+    log.info("resolve start", { spec: plan.spec, kind })
     // First make sure the plugin exists locally, installing npm plugins on demand.
     let target = ""
     try {
       target = await resolvePluginTarget(plan.spec)
     } catch (error) {
+      log.error("resolve install failed", { spec: plan.spec, error: String(error) })
       return { ok: false, stage: "install", error }
     }
     if (!target) return { ok: false, stage: "install", error: new Error(`Plugin ${plan.spec} target is empty`) }
+    log.info("resolve target", { spec: plan.spec, target })
 
     // Then inspect the target for the requested server/tui entrypoint.
     let base
     try {
       base = await createPluginEntry(plan.spec, target, kind)
     } catch (error) {
+      log.error("resolve entry error", { spec: plan.spec, error: String(error) })
       return { ok: false, stage: "entry", error }
     }
-    if (!base.entry)
+    if (!base.entry) {
+      log.warn("resolve missing entry", { spec: plan.spec, kind, target: base.target, source: base.source })
       return {
         ok: false,
         stage: "missing",
@@ -102,6 +110,8 @@ export namespace PluginLoader {
           message: `Plugin ${plan.spec} does not expose a ${kind} entrypoint`,
         },
       }
+    }
+    log.info("resolve entry found", { spec: plan.spec, kind, entry: base.entry })
 
     // npm plugins can declare which opencode versions they support; file plugins are treated
     // as local development code and skip this compatibility gate.
@@ -109,21 +119,26 @@ export namespace PluginLoader {
       try {
         await checkPluginCompatibility(base.target, InstallationVersion, base.pkg)
       } catch (error) {
+        log.warn("resolve compatibility failed", { spec: plan.spec, error: String(error) })
         return { ok: false, stage: "compatibility", error }
       }
     }
+    log.info("resolve ok", { spec: plan.spec, kind, entry: base.entry })
     return { ok: true, value: { ...plan, source: base.source, target: base.target, entry: base.entry, pkg: base.pkg } }
   }
 
   // Import the resolved module only after all earlier validation has succeeded.
   export async function load(row: Resolved): Promise<{ ok: true; value: Loaded } | { ok: false; error: unknown }> {
+    log.info("load import", { spec: row.spec, entry: row.entry })
     let mod
     try {
       mod = await import(row.entry)
     } catch (error) {
+      log.error("load import failed", { spec: row.spec, entry: row.entry, error: String(error) })
       return { ok: false, error }
     }
     if (!mod) return { ok: false, error: new Error(`Plugin ${row.spec} module is empty`) }
+    log.info("load import ok", { spec: row.spec, exports: Object.keys(mod) })
     return { ok: true, value: { ...row, mod } }
   }
 
