@@ -54,7 +54,7 @@ function HistoryMessage(props: { message: Message; parts: PartLike[] }) {
         <span
           class="text-11-medium shrink-0"
           classList={{
-            "text-text-tint": isUser(),
+            "text-text-base": isUser(),
             "text-text-weak": !isUser(),
           }}
         >
