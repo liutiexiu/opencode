@@ -272,7 +272,7 @@ export function SessionSidePanel(props: {
                           </div>
                         </Tabs.Trigger>
                       </Show>
-                      <Tabs.Trigger value="history" hideCloseButton>
+                      <Tabs.Trigger value="history">
                         <div>历史</div>
                       </Tabs.Trigger>
                       <Show when={contextOpen()}>
@@ -336,11 +336,9 @@ export function SessionSidePanel(props: {
                   </Show>
 
                   <Tabs.Content value="history" class="flex flex-col h-full overflow-hidden contain-strict">
-                    <Show when={activeTab() === "history"}>
-                      <div class="relative pt-2 flex-1 min-h-0 overflow-hidden">
-                        <HistoryTab sessionID={params.id} />
-                      </div>
-                    </Show>
+                    <div class="relative pt-2 flex-1 min-h-0 overflow-hidden h-full">
+                      <HistoryTab sessionID={params.id} />
+                    </div>
                   </Tabs.Content>
 
                   <Tabs.Content value="empty" class="flex flex-col h-full overflow-hidden contain-strict">
