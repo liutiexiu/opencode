@@ -265,7 +265,7 @@ export function SessionSidePanel(props: {
                         onCleanup(stop)
                       }}
                     >
-                      <Show when={reviewTab() && props.canReview()}>
+                      <Show when={reviewTab()}>
                         <Tabs.Trigger value="review">
                           <div class="flex items-center gap-1.5">
                             <div>{language.t("session.tab.review")}</div>
