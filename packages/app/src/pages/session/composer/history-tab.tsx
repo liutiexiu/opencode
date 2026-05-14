@@ -10,7 +10,7 @@ function lastText(parts: PartLike[]): string {
 }
 
 const LONG_CONTENT_THRESHOLD = 150
-const LONG_CONTENT_PREVIEW = 50
+const KEEP_EDGE = 75
 
 function allText(parts: PartLike[]): string {
   return parts
@@ -34,17 +34,20 @@ function HistoryMessage(props: { message: Message; parts: PartLike[] }) {
 
   const rawUserText = createMemo(() => (isUser() ? allText(props.parts) : ""))
 
-  const content = createMemo(() => {
-    if (!isUser()) return truncate(lastText(props.parts))
-    const text = rawUserText()
-    if (text.length <= LONG_CONTENT_THRESHOLD) return text
-    return text.slice(0, LONG_CONTENT_PREVIEW) + "…"
-  })
+  const isLong = createMemo(() => isUser() && rawUserText().length > LONG_CONTENT_THRESHOLD)
 
-  const isLongPaste = createMemo(() => isUser() && rawUserText().length > LONG_CONTENT_THRESHOLD)
+  const head = createMemo(() => (isLong() ? rawUserText().slice(0, KEEP_EDGE) : ""))
+  const tail = createMemo(() => (isLong() ? rawUserText().slice(-KEEP_EDGE) : ""))
+  const short = createMemo(() => (!isLong() && isUser() ? rawUserText() : ""))
+
+  const assistantContent = createMemo(() => (!isUser() ? truncate(lastText(props.parts)) : ""))
+
+  const hasContent = createMemo(() =>
+    isUser() ? rawUserText().length > 0 : assistantContent().length > 0,
+  )
 
   return (
-    <Show when={content()}>
+    <Show when={hasContent()}>
       <div class="flex flex-col gap-0.5 py-2 border-b border-border-weaker-base last:border-0">
         <span
           class="text-11-medium shrink-0"
@@ -55,12 +58,19 @@ function HistoryMessage(props: { message: Message; parts: PartLike[] }) {
         >
           {label()}
         </span>
-        <p class="text-12-regular text-text-base leading-relaxed whitespace-pre-wrap break-words m-0">
-          {content()}
-          <Show when={isLongPaste()}>
-            <span class="ml-1 text-11-regular text-text-weaker italic">[粘贴内容]</span>
-          </Show>
-        </p>
+        <Show when={!isUser()}>
+          <p class="text-12-regular text-text-base leading-relaxed whitespace-pre-wrap break-words m-0">
+            {assistantContent()}
+          </p>
+        </Show>
+        <Show when={isUser() && !isLong()}>
+          <p class="text-12-regular text-text-base leading-relaxed whitespace-pre-wrap break-words m-0">{short()}</p>
+        </Show>
+        <Show when={isLong()}>
+          <p class="text-12-regular text-text-base leading-relaxed whitespace-pre-wrap break-words m-0">{head()}</p>
+          <p class="text-11-regular text-text-weaker text-center m-0 py-0.5 select-none">···</p>
+          <p class="text-12-regular text-text-base leading-relaxed whitespace-pre-wrap break-words m-0">{tail()}</p>
+        </Show>
       </div>
     </Show>
   )
