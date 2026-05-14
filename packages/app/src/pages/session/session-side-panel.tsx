@@ -1,4 +1,4 @@
-import { For, Match, Show, Switch, createEffect, createMemo, onCleanup, type JSX } from "solid-js"
+import { For, Match, Show, Switch, createEffect, createMemo, createSignal, onCleanup, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createMediaQuery } from "@solid-primitives/media"
 import { Tabs } from "@opencode-ai/ui/tabs"
@@ -27,6 +27,7 @@ import { FileTabContent } from "@/pages/session/file-tabs"
 import { createOpenSessionFileTab, createSessionTabs, getTabReorderIndex, type Sizing } from "@/pages/session/helpers"
 import { setSessionHandoff } from "@/pages/session/handoff"
 import { useSessionLayout } from "@/pages/session/session-layout"
+import { HistoryTab } from "@/pages/session/composer/history-tab"
 
 export function SessionSidePanel(props: {
   canReview: () => boolean
@@ -49,7 +50,7 @@ export function SessionSidePanel(props: {
   const language = useLanguage()
   const command = useCommand()
   const dialog = useDialog()
-  const { sessionKey, tabs, view } = useSessionLayout()
+  const { sessionKey, tabs, view, params } = useSessionLayout()
 
   const isDesktop = createMediaQuery("(min-width: 768px)")
   const shown = createMemo(
@@ -142,6 +143,9 @@ export function SessionSidePanel(props: {
   const activeTab = tabState.activeTab
   const activeFileTab = tabState.activeFileTab
 
+  const [historyActive, setHistoryActive] = createSignal(false)
+  const effectiveTab = createMemo(() => (historyActive() ? "history" : activeTab()))
+
   const fileTreeTab = () => layout.fileTree.tab()
 
   const setFileTreeTabValue = (value: string) => {
@@ -177,6 +181,27 @@ export function SessionSidePanel(props: {
   const handleDragEnd = () => {
     setStore("activeDraggable", undefined)
   }
+
+  const handleOpenFile = (e: Event) => {
+    const { path } = (e as CustomEvent<{ path: string }>).detail
+    if (!path) return
+    openTab(`file://${path}`)
+  }
+
+  const handleOpenDiff = (e: Event) => {
+    const { path } = (e as CustomEvent<{ path: string }>).detail
+    if (!path) return
+    openReviewPanel()
+    props.focusReviewDiff(path)
+  }
+
+  window.addEventListener("opencode:openFile", handleOpenFile)
+  window.addEventListener("opencode:openDiff", handleOpenDiff)
+
+  onCleanup(() => {
+    window.removeEventListener("opencode:openFile", handleOpenFile)
+    window.removeEventListener("opencode:openDiff", handleOpenDiff)
+  })
 
   createEffect(() => {
     if (!file.ready()) return
@@ -232,7 +257,7 @@ export function SessionSidePanel(props: {
               >
                 <DragDropSensors />
                 <ConstrainDragYAxis />
-                <Tabs value={activeTab()} onChange={openTab}>
+                <Tabs value={effectiveTab()} onChange={(v) => { if (v === "history") { setHistoryActive(true) } else { setHistoryActive(false); openTab(v) } }}>
                   <div class="sticky top-0 shrink-0 flex">
                     <Tabs.List
                       ref={(el: HTMLDivElement) => {
@@ -240,7 +265,7 @@ export function SessionSidePanel(props: {
                         onCleanup(stop)
                       }}
                     >
-                      <Show when={reviewTab() && props.canReview()}>
+                      <Show when={reviewTab()}>
                         <Tabs.Trigger value="review">
                           <div class="flex items-center gap-1.5">
                             <div>{language.t("session.tab.review")}</div>
@@ -250,6 +275,9 @@ export function SessionSidePanel(props: {
                           </div>
                         </Tabs.Trigger>
                       </Show>
+                      <Tabs.Trigger value="history">
+                        <div>历史</div>
+                      </Tabs.Trigger>
                       <Show when={contextOpen()}>
                         <Tabs.Trigger
                           value="context"
@@ -309,6 +337,12 @@ export function SessionSidePanel(props: {
                       <Show when={activeTab() === "review"}>{props.reviewPanel()}</Show>
                     </Tabs.Content>
                   </Show>
+
+                  <Tabs.Content value="history" class="flex flex-col h-full overflow-hidden contain-strict">
+                    <div class="relative pt-2 flex-1 min-h-0 overflow-hidden h-full">
+                      <HistoryTab sessionID={params.id} />
+                    </div>
+                  </Tabs.Content>
 
                   <Tabs.Content value="empty" class="flex flex-col h-full overflow-hidden contain-strict">
                     <Show when={activeTab() === "empty"}>
