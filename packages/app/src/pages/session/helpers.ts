@@ -50,7 +50,7 @@ export const createSessionTabs = (input: TabsInput) => {
     const first = openedTabs()[0]
     if (first) return first
     if (contextOpen()) return "context"
-    if (review() && hasReview()) return "review"
+    if (review()) return "review"
     return "empty"
   })
   const activeFileTab = createMemo(() => {
