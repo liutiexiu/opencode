@@ -1,5 +1,15 @@
 const MAX_BREAKS = 200
 
+export function createPastedFragment(content: string): DocumentFragment {
+  const outer = document.createDocumentFragment()
+  const span = document.createElement("span")
+  span.setAttribute("data-pasted", "")
+  const inner = createTextFragment(content)
+  span.appendChild(inner)
+  outer.appendChild(span)
+  return outer
+}
+
 export function createTextFragment(content: string): DocumentFragment {
   const fragment = document.createDocumentFragment()
   let breaks = 0
