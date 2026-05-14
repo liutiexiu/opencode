@@ -1,6 +1,8 @@
 export * as TuiConfig from "./tui"
 
 import type z from "zod"
+import path from "path"
+import { existsSync } from "fs"
 import { createBindingLookup } from "@opentui/keymap/extras"
 import { mergeDeep, unique } from "remeda"
 import { Context, Effect, Fiber, Layer } from "effect"
@@ -168,7 +170,11 @@ const loadState = Effect.fn("TuiConfig.loadState")(function* (ctx: { directory: 
   // 4. `.opencode` directories (and OPENCODE_CONFIG_DIR) discovered while
   // walking up the tree. Also returned below so callers can install plugin
   // dependencies from each location.
-  const dirs = unique(directories).filter((dir) => dir.endsWith(".opencode") || dir === Flag.OPENCODE_CONFIG_DIR)
+  const dirs = unique(directories).filter((dir) => {
+    if (dir === Global.Path.config || dir === Flag.OPENCODE_CONFIG_DIR) return true
+    const parentDir = path.dirname(dir)
+    return path.basename(parentDir) === "opencode" && existsSync(path.join(parentDir, ".git"))
+  })
 
   for (const dir of dirs) {
     if (!dir.endsWith(".opencode") && dir !== Flag.OPENCODE_CONFIG_DIR) continue

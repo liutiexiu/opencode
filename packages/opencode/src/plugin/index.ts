@@ -81,11 +81,15 @@ function getLegacyPlugins(mod: Record<string, unknown>) {
   const seen = new Set<unknown>()
   const result: PluginInstance[] = []
 
-  for (const entry of Object.values(mod)) {
+  for (const [key, entry] of Object.entries(mod)) {
     if (seen.has(entry)) continue
     seen.add(entry)
+    log.info("getLegacyPlugins entry", { key, type: typeof entry })
     const plugin = getServerPlugin(entry)
-    if (!plugin) throw new TypeError("Plugin export is not a function")
+    if (!plugin) {
+      log.warn("getLegacyPlugins not a server plugin", { key, type: typeof entry })
+      throw new TypeError("Plugin export is not a function")
+    }
     result.push(plugin)
   }
 
@@ -93,13 +97,16 @@ function getLegacyPlugins(mod: Record<string, unknown>) {
 }
 
 async function applyPlugin(load: PluginLoader.Loaded, input: PluginInput, hooks: Hooks[]) {
+  log.info("applyPlugin", { spec: load.spec, entry: load.entry, exports: Object.keys(load.mod) })
   const plugin = readV1Plugin(load.mod, load.spec, "server", "detect")
   if (plugin) {
+    log.info("applyPlugin v1 path", { spec: load.spec, has_server: "server" in plugin, has_tui: "tui" in plugin })
     await resolvePluginId(load.source, load.spec, load.target, readPluginId(plugin.id, load.spec), load.pkg)
     hooks.push(await (plugin as PluginModule).server(input, load.options))
     return
   }
 
+  log.info("applyPlugin legacy path", { spec: load.spec })
   for (const server of getLegacyPlugins(load.mod)) {
     hooks.push(await server(input, load.options))
   }

@@ -31,6 +31,7 @@ import { CommandProvider } from "@/context/command"
 import { CommentsProvider } from "@/context/comments"
 import { FileProvider } from "@/context/file"
 import { GlobalSDKProvider } from "@/context/global-sdk"
+import { IdeViewBridgeProvider } from "@/context/ide-view-bridge"
 import { GlobalSyncProvider } from "@/context/global-sync"
 import { HighlightsProvider } from "@/context/highlights"
 import { LanguageProvider, type Locale, useLanguage } from "@/context/language"
@@ -130,10 +131,12 @@ function SessionProviders(props: ParentProps) {
 function RouterRoot(props: ParentProps<{ appChildren?: JSX.Element }>) {
   return (
     <AppShellProviders>
-      {/*<Suspense fallback={<Loading />}>*/}
-      {props.appChildren}
-      {props.children}
-      {/*</Suspense>*/}
+      <IdeViewBridgeProvider>
+        {/*<Suspense fallback={<Loading />}>*/}
+        {props.appChildren}
+        {props.children}
+        {/*</Suspense>*/}
+      </IdeViewBridgeProvider>
     </AppShellProviders>
   )
 }
