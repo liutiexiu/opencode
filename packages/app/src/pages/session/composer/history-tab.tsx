@@ -2,10 +2,12 @@ import { For, Show, createMemo } from "solid-js"
 import type { AssistantMessage, Message, TextPart } from "@opencode-ai/sdk/v2/client"
 import { useSync } from "@/context/sync"
 
-type PartLike = { type: string; text?: string }
+type PartLike = { type: string; text?: string; synthetic?: boolean; ignored?: boolean }
 
 function lastText(parts: PartLike[]): string {
-  const textParts = parts.filter((p): p is TextPart => p.type === "text" && typeof (p as TextPart).text === "string")
+  const textParts = parts.filter(
+    (p): p is TextPart => p.type === "text" && typeof (p as TextPart).text === "string" && !p.synthetic && !p.ignored,
+  )
   return textParts.at(-1)?.text?.trim() ?? ""
 }
 
@@ -14,7 +16,7 @@ const KEEP_EDGE = 75
 
 function allText(parts: PartLike[]): string {
   return parts
-    .filter((p): p is TextPart => p.type === "text")
+    .filter((p): p is TextPart => p.type === "text" && !p.synthetic && !p.ignored)
     .map((p) => p.text)
     .join("")
     .trim()
@@ -84,16 +86,21 @@ export function HistoryTab(props: { sessionID: string | undefined }) {
     return (sync.data.message[props.sessionID] ?? []).flatMap(
       (msg): { message: Message; parts: PartLike[] }[] => {
         if (msg.role !== "user" && msg.role !== "assistant") return []
-        if (msg.role === "assistant" && typeof (msg as AssistantMessage).time.completed !== "number") return []
+        if (msg.role === "assistant") {
+          const a = msg as AssistantMessage
+          if (typeof a.time.completed !== "number") return []
+          if (a.summary) return []
+        }
         const parts = (sync.data.part[msg.id] ?? []) as PartLike[]
-        if (!parts.some((p) => p.type === "text")) return []
+        const hasRealText = parts.some((p) => p.type === "text" && !p.synthetic && !p.ignored)
+        if (!hasRealText) return []
         return [{ message: msg, parts }]
       },
     )
   })
 
   return (
-    <div class="flex flex-col h-full overflow-y-auto px-3 py-1" data-scrollable style={{ "scrollbar-width": "thin" }}>
+    <div class="flex flex-col h-full overflow-y-auto px-3 py-1 select-text" data-scrollable style={{ "scrollbar-width": "thin" }}>
       <Show
         when={entries().length > 0}
         fallback={
