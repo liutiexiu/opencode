@@ -95,6 +95,7 @@ export function pruneSessionKeys(input: {
 function nextSessionTabsForOpen(current: SessionTabs | undefined, tab: string): SessionTabs {
   const all = current?.all ?? []
   if (tab === "review") return { all: all.filter((x) => x !== "review"), active: tab }
+  if (tab === "history") return { all: all.filter((x) => x !== "history"), active: undefined }
   if (tab === "context") return { all: [tab, ...all.filter((x) => x !== tab)], active: tab }
   if (!all.includes(tab)) return { all: [...all, tab], active: tab }
   return { all, active: tab }
@@ -126,9 +127,10 @@ const normalizeSessionTabList = (path: ReturnType<typeof createPathHelpers> | un
 
 const normalizeStoredSessionTabs = (key: string, tabs: SessionTabs) => {
   const path = sessionPath(key)
+  const active = tabs.active ? normalizeSessionTab(path, tabs.active) : tabs.active
   return {
     all: normalizeSessionTabList(path, tabs.all),
-    active: tabs.active ? normalizeSessionTab(path, tabs.active) : tabs.active,
+    active: active === "history" ? undefined : active,
   }
 }
 
