@@ -10,8 +10,6 @@ import { EffectFlock } from "./util/effect-flock"
 import { makeRuntime } from "./effect/runtime"
 import { NpmConfig } from "./npm-config"
 
-const log = Log.create({ service: "npm" })
-
 export class InstallFailedError extends Schema.TaggedErrorClass<InstallFailedError>()("NpmInstallFailedError", {
   add: Schema.Array(Schema.String).pipe(Schema.optional),
   dir: Schema.String,
@@ -134,11 +132,9 @@ export const layer = Layer.effect(
       const pkgDir = path.join(dir, "node_modules", parsedName)
       const alreadyInstalled = yield* fs.exists(pkgDir).pipe(Effect.orElseSucceed(() => false))
       if (alreadyInstalled) {
-        log.info("Npm.add skip reify, already installed", { pkg, pkgDir })
         return resolveEntryPoint(parsedName, pkgDir)
       }
 
-      log.info("Npm.add reify", { pkg, dir })
       const tree = yield* reify({ dir, add: [pkg] })
       const first = tree.edgesOut.values().next().value?.to
       if (!first) {
@@ -193,9 +189,7 @@ export const layer = Layer.effect(
 
         for (const name of declared) {
           if (!locked.has(name)) {
-            log.info("dependencies outdated, reinstalling", { dir, add })
             yield* reify({ dir, add })
-            log.info("dependencies reinstalled", { dir })
             return
           }
         }

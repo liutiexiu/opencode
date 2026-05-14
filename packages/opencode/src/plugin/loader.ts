@@ -10,7 +10,7 @@ import {
 } from "./shared"
 import { ConfigPlugin } from "@/config/plugin"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
-import { Log } from "@/util"
+import * as Log from "@opencode-ai/core/util/log"
 
 const log = Log.create({ service: "plugin.loader" })
 

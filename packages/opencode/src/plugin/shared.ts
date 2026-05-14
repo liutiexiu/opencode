@@ -5,7 +5,7 @@ import semver from "semver"
 import { Filesystem } from "@/util/filesystem"
 import { isRecord } from "@/util/record"
 import { Npm } from "@opencode-ai/core/npm"
-import { Log } from "@/util"
+import * as Log from "@opencode-ai/core/util/log"
 
 const log = Log.create({ service: "plugin.shared" })
 
