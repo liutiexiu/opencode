@@ -123,14 +123,14 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
 
     const text = normalizePaste(plainText)
 
-    const put = () => {
-      if (input.addPart({ type: "text", content: text, start: 0, end: 0 })) return true
+    const put = (pasted?: true) => {
+      if (input.addPart({ type: "text", content: text, start: 0, end: 0, ...(pasted ? { pasted } : {}) })) return true
       input.focusEditor()
-      return input.addPart({ type: "text", content: text, start: 0, end: 0 })
+      return input.addPart({ type: "text", content: text, start: 0, end: 0, ...(pasted ? { pasted } : {}) })
     }
 
     if (pasteMode(text) === "manual") {
-      put()
+      put(true)
       return
     }
 
