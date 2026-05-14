@@ -1,7 +1,8 @@
-import { Show, createEffect, createMemo, onCleanup } from "solid-js"
+import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useNavigate } from "@solidjs/router"
 import { useSpring } from "@opencode-ai/ui/motion-spring"
+import { Tabs } from "@opencode-ai/ui/tabs"
 import { PromptInput } from "@/components/prompt-input"
 import { useLanguage } from "@/context/language"
 import { usePrompt } from "@/context/prompt"
@@ -14,6 +15,7 @@ import { SessionFollowupDock } from "@/pages/session/composer/session-followup-d
 import { SessionRevertDock } from "@/pages/session/composer/session-revert-dock"
 import type { SessionComposerState } from "@/pages/session/composer/session-composer-state"
 import { SessionTodoDock } from "@/pages/session/composer/session-todo-dock"
+import { HistoryTab } from "@/pages/session/composer/history-tab"
 import type { FollowupDraft } from "@/components/prompt-input/submit"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 
@@ -56,6 +58,8 @@ export function SessionComposerRegion(props: {
   const parentID = createMemo(() => info()?.parentID)
   const child = createMemo(() => !!parentID())
   const showComposer = createMemo(() => !props.state.blocked() || child())
+
+  const [composerTab, setComposerTab] = createSignal<"input" | "history">("input")
 
   const previewPrompt = () =>
     prompt
@@ -246,40 +250,69 @@ export function SessionComposerRegion(props: {
                   onEdit={props.followup!.onEdit}
                 />
               </Show>
-              <Show
-                when={child()}
-                fallback={
-                  <Show when={!props.state.blocked()}>
-                    <PromptInput
+              <div class="flex flex-col md:flex-row gap-2 items-stretch">
+                <div class="flex-1 min-w-0">
+                  <Show
+                    when={child()}
+                    fallback={
+                      <Show when={!props.state.blocked()}>
+                        <PromptInput
+                          ref={props.inputRef}
+                          newSessionWorktree={props.newSessionWorktree}
+                          onNewSessionWorktreeReset={props.onNewSessionWorktreeReset}
+                          edit={props.followup?.edit}
+                          onEditLoaded={props.followup?.onEditLoaded}
+                          shouldQueue={props.followup?.queue}
+                          onQueue={props.followup?.onQueue}
+                          onAbort={props.followup?.onAbort}
+                          onSubmit={props.onSubmit}
+                        />
+                      </Show>
+                    }
+                  >
+                    <div
                       ref={props.inputRef}
-                      newSessionWorktree={props.newSessionWorktree}
-                      onNewSessionWorktreeReset={props.onNewSessionWorktreeReset}
-                      edit={props.followup?.edit}
-                      onEditLoaded={props.followup?.onEditLoaded}
-                      shouldQueue={props.followup?.queue}
-                      onQueue={props.followup?.onQueue}
-                      onAbort={props.followup?.onAbort}
-                      onSubmit={props.onSubmit}
-                    />
-                  </Show>
-                }
-              >
-                <div
-                  ref={props.inputRef}
-                  class="w-full rounded-[12px] border border-border-weak-base bg-background-base p-3 text-16-regular text-text-weak"
-                >
-                  <span>{language.t("session.child.promptDisabled")} </span>
-                  <Show when={parentID()}>
-                    <button
-                      type="button"
-                      class="text-text-base transition-colors hover:text-text-strong"
-                      onClick={openParent}
+                      class="w-full rounded-[12px] border border-border-weak-base bg-background-base p-3 text-16-regular text-text-weak"
                     >
-                      {language.t("session.child.backToParent")}
-                    </button>
+                      <span>{language.t("session.child.promptDisabled")} </span>
+                      <Show when={parentID()}>
+                        <button
+                          type="button"
+                          class="text-text-base transition-colors hover:text-text-strong"
+                          onClick={openParent}
+                        >
+                          {language.t("session.child.backToParent")}
+                        </button>
+                      </Show>
+                    </div>
                   </Show>
                 </div>
-              </Show>
+                <div class="shrink-0 md:w-56 w-full rounded-[12px] border border-border-weak-base bg-background-base overflow-hidden flex flex-col" style={{ "max-height": "160px" }}>
+                  <Tabs value={composerTab()} onChange={(v) => setComposerTab(v as "input" | "history")} variant="pill" class="flex flex-col h-full">
+                    <Tabs.List class="shrink-0 px-2 pt-1.5 pb-1">
+                      <Tabs.Trigger value="input" class="flex-1" classes={{ button: "w-full text-11-medium" }}>
+                        Input
+                      </Tabs.Trigger>
+                      <Tabs.Trigger value="history" class="flex-1" classes={{ button: "w-full text-11-medium" }}>
+                        History
+                      </Tabs.Trigger>
+                    </Tabs.List>
+                    <Tabs.Content value="input" class="flex-1 min-h-0 overflow-hidden px-2 pb-2">
+                      <div class="text-11-regular text-text-weak h-full overflow-y-auto" style={{ "scrollbar-width": "thin" }}>
+                        <Show
+                          when={route.params.id}
+                          fallback={<span class="italic">Start a conversation to see your input here.</span>}
+                        >
+                          <span class="italic text-text-weaker">Current prompt shown in the input box.</span>
+                        </Show>
+                      </div>
+                    </Tabs.Content>
+                    <Tabs.Content value="history" class="flex-1 min-h-0 overflow-hidden">
+                      <HistoryTab sessionID={route.params.id} />
+                    </Tabs.Content>
+                  </Tabs>
+                </div>
+              </div>
             </div>
           </Show>
         </Show>
