@@ -516,29 +516,6 @@ export const layer = Layer.effect(
 
           yield* ensureGitignore(dir).pipe(Effect.orDie)
 
-          const dep = yield* npmSvc
-            .install(dir, {
-              add: [
-                {
-                  name: "@opencode-ai/plugin",
-                  version: InstallationLocal ? undefined : InstallationVersion,
-                },
-              ],
-            })
-            .pipe(
-              Effect.exit,
-              Effect.tap((exit) =>
-                Exit.isFailure(exit)
-                  ? Effect.sync(() => {
-                      log.warn("background dependency install failed", { dir, error: String(exit.cause) })
-                    })
-                  : Effect.void,
-              ),
-              Effect.asVoid,
-              Effect.forkDetach,
-            )
-          deps.push(dep)
-
           result.command = mergeDeep(result.command ?? {}, yield* Effect.promise(() => ConfigCommand.load(dir)))
           result.agent = mergeDeep(result.agent ?? {}, yield* Effect.promise(() => ConfigAgent.load(dir)))
           result.agent = mergeDeep(result.agent ?? {}, yield* Effect.promise(() => ConfigAgent.loadMode(dir)))
@@ -546,6 +523,75 @@ export const layer = Layer.effect(
           // returns normalized Specs and we only need to attach origin metadata here.
           const list = yield* Effect.promise(() => ConfigPlugin.load(dir))
           yield* mergePluginOrigins(dir, list)
+
+          // Only install plugin npm dependencies for the global config dir or the opencode
+          // repo itself. Project-local .opencode dirs provide skills/agents but should not
+          // trigger an npm install on every startup.
+          const isGlobalDir = dir === Global.Path.config || dir === Flag.OPENCODE_CONFIG_DIR
+          const parentDir = path.dirname(dir)
+          const isOpencodeRepo =
+            path.basename(parentDir) === "opencode" && existsSync(path.join(parentDir, ".git"))
+          if (!isGlobalDir && !isOpencodeRepo) continue
+
+          const dep = yield* Effect.sync(() => {
+            GlobalBus.emit("event", {
+              payload: {
+                type: "tui.toast.show",
+                properties: {
+                  message: `Installing plugin dependencies in ${path.basename(dir)}...`,
+                  variant: "info",
+                  duration: 60000,
+                },
+              },
+            })
+          }).pipe(
+            Effect.andThen(
+              npmSvc
+                .install(dir, {
+                  add: [
+                    {
+                      name: "@opencode-ai/plugin",
+                      version: InstallationLocal ? undefined : InstallationVersion,
+                    },
+                  ],
+                })
+                .pipe(
+                  Effect.exit,
+                  Effect.tap((exit) =>
+                    Exit.isFailure(exit)
+                      ? Effect.sync(() => {
+                          log.warn("background dependency install failed", { dir, error: String(exit.cause) })
+                          GlobalBus.emit("event", {
+                            payload: {
+                              type: "tui.toast.show",
+                              properties: {
+                                title: "Plugin install failed",
+                                message: `Failed to install plugin dependencies in ${path.basename(dir)}.`,
+                                variant: "warning",
+                                duration: 8000,
+                              },
+                            },
+                          })
+                        })
+                      : Effect.sync(() => {
+                          GlobalBus.emit("event", {
+                            payload: {
+                              type: "tui.toast.show",
+                              properties: {
+                                message: `Plugin dependencies installed in ${path.basename(dir)}.`,
+                                variant: "success",
+                                duration: 4000,
+                              },
+                            },
+                          })
+                        }),
+                  ),
+                  Effect.asVoid,
+                ),
+            ),
+            Effect.forkDetach,
+          )
+          deps.push(dep)
         }
 
         if (process.env.OPENCODE_CONFIG_CONTENT) {
