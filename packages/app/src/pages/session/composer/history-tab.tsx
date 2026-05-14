@@ -9,6 +9,9 @@ function lastText(parts: PartLike[]): string {
   return textParts.at(-1)?.text?.trim() ?? ""
 }
 
+const LONG_CONTENT_THRESHOLD = 150
+const LONG_CONTENT_PREVIEW = 50
+
 function allText(parts: PartLike[]): string {
   return parts
     .filter((p): p is TextPart => p.type === "text")
@@ -29,10 +32,16 @@ function HistoryMessage(props: { message: Message; parts: PartLike[] }) {
     return (props.message as AssistantMessage).agent || "assistant"
   })
 
+  const rawUserText = createMemo(() => (isUser() ? allText(props.parts) : ""))
+
   const content = createMemo(() => {
-    if (props.message.role === "user") return truncate(allText(props.parts))
-    return truncate(lastText(props.parts))
+    if (!isUser()) return truncate(lastText(props.parts))
+    const text = rawUserText()
+    if (text.length <= LONG_CONTENT_THRESHOLD) return text
+    return text.slice(0, LONG_CONTENT_PREVIEW) + "…"
   })
+
+  const isLongPaste = createMemo(() => isUser() && rawUserText().length > LONG_CONTENT_THRESHOLD)
 
   return (
     <Show when={content()}>
@@ -46,7 +55,12 @@ function HistoryMessage(props: { message: Message; parts: PartLike[] }) {
         >
           {label()}
         </span>
-        <p class="text-12-regular text-text-base leading-relaxed whitespace-pre-wrap break-words m-0">{content()}</p>
+        <p class="text-12-regular text-text-base leading-relaxed whitespace-pre-wrap break-words m-0">
+          {content()}
+          <Show when={isLongPaste()}>
+            <span class="ml-1 text-11-regular text-text-weaker italic">[粘贴内容]</span>
+          </Show>
+        </p>
       </div>
     </Show>
   )
