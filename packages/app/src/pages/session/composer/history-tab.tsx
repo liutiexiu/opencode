@@ -60,6 +60,7 @@ export function HistoryTab(props: { sessionID: string | undefined }) {
     return (sync.data.message[props.sessionID] ?? []).flatMap(
       (msg): { message: Message; parts: PartLike[] }[] => {
         if (msg.role !== "user" && msg.role !== "assistant") return []
+        if (msg.role === "assistant" && typeof (msg as AssistantMessage).time.completed !== "number") return []
         const parts = (sync.data.part[msg.id] ?? []) as PartLike[]
         if (!parts.some((p) => p.type === "text")) return []
         return [{ message: msg, parts }]

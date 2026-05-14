@@ -272,7 +272,7 @@ export function SessionSidePanel(props: {
                           </div>
                         </Tabs.Trigger>
                       </Show>
-                      <Tabs.Trigger value="history">
+                      <Tabs.Trigger value="history" hideCloseButton>
                         <div>历史</div>
                       </Tabs.Trigger>
                       <Show when={contextOpen()}>
