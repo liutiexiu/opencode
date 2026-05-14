@@ -14,6 +14,7 @@ interface PartBase {
 
 export interface TextPart extends PartBase {
   type: "text"
+  pasted?: true
 }
 
 export interface FileAttachmentPart extends PartBase {
