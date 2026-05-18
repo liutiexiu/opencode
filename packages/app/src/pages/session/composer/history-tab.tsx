@@ -1,6 +1,18 @@
 import { For, Show, createMemo } from "solid-js"
-import type { AssistantMessage, Message, TextPart } from "@opencode-ai/sdk/v2/client"
+import type { AssistantMessage, Message, TextPart, UserMessage } from "@opencode-ai/sdk/v2/client"
 import { useSync } from "@/context/sync"
+
+function formatChinaTime(ms: number): string {
+  return new Date(ms).toLocaleString("sv-SE", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  })
+}
 
 type PartLike = { type: string; text?: string; synthetic?: boolean; ignored?: boolean }
 
@@ -30,7 +42,7 @@ function HistoryMessage(props: { message: Message; parts: PartLike[] }) {
   const isUser = () => props.message.role === "user"
 
   const label = createMemo(() => {
-    if (props.message.role === "user") return "user"
+    if (props.message.role === "user") return "User"
     return (props.message as AssistantMessage).agent || "assistant"
   })
 
@@ -51,15 +63,19 @@ function HistoryMessage(props: { message: Message; parts: PartLike[] }) {
   return (
     <Show when={hasContent()}>
       <div class="flex flex-col gap-0.5 py-2 border-b border-border-weaker-base last:border-0">
-        <span
-          class="text-11-medium shrink-0"
-          classList={{
-            "text-text-base": isUser(),
-            "text-text-weak": !isUser(),
-          }}
-        >
-          {label()}
-        </span>
+        <div class="flex items-baseline gap-1.5 shrink-0">
+          <span
+            class="text-11-medium text-text-strong"
+            style={isUser() ? { "font-weight": "700" } : undefined}
+          >
+            {label()}
+          </span>
+          <Show when={isUser()}>
+            <span class="text-11-medium text-text-weaker" style={{ "font-weight": "400" }}>
+              ({formatChinaTime((props.message as UserMessage).time.created)})
+            </span>
+          </Show>
+        </div>
         <Show when={!isUser()}>
           <p class="text-12-regular text-text-base leading-relaxed whitespace-pre-wrap break-words m-0">
             {assistantContent()}
