@@ -402,3 +402,36 @@ input:where([type="button"], [type="reset"], [type="submit"]),
     font-size: 16px !important;
   }
 }
+
+/* Markdown content: tighten paragraph and heading spacing */
+[data-component="markdown"] {
+  p,
+  ul,
+  ol,
+  blockquote,
+  pre {
+    margin-block: 0.35em;
+  }
+
+  p:first-child,
+  ul:first-child,
+  ol:first-child,
+  pre:first-child {
+    margin-top: 0;
+  }
+
+  p:last-child,
+  ul:last-child,
+  ol:last-child,
+  pre:last-child {
+    margin-bottom: 0;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    margin-block: 0.5em 0.25em;
+  }
+
+  li {
+    margin-block: 0.15em;
+  }
+}
