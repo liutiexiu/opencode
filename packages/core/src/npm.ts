@@ -9,6 +9,9 @@ import { Global } from "./global"
 import { EffectFlock } from "./util/effect-flock"
 import { makeRuntime } from "./effect/runtime"
 import { NpmConfig } from "./npm-config"
+import * as Log from "./util/log"
+
+const log = Log.create({ service: "npm" })
 
 export class InstallFailedError extends Schema.TaggedErrorClass<InstallFailedError>()("NpmInstallFailedError", {
   add: Schema.Array(Schema.String).pipe(Schema.optional),
@@ -124,6 +127,19 @@ export const layer = Layer.effect(
         return resolveEntryPoint(name, path.join(dir, "node_modules", name))
       }
 
+      // Parse out the bare package name (strip version spec) to check if already installed.
+      // e.g. "oh-my-opencode@latest" -> "oh-my-opencode", "@scope/pkg@1.2.3" -> "@scope/pkg"
+      const parsedName = pkg.startsWith("@")
+        ? pkg.replace(/@[^/]+$/, (m, offset) => (offset === 0 ? m : ""))
+        : pkg.replace(/@.*$/, "")
+      const pkgDir = path.join(dir, "node_modules", parsedName)
+      const alreadyInstalled = yield* fs.exists(pkgDir).pipe(Effect.orElseSucceed(() => false))
+      if (alreadyInstalled) {
+        log.info("Npm.add skip reify, already installed", { pkg, pkgDir })
+        return resolveEntryPoint(parsedName, pkgDir)
+      }
+
+      log.info("Npm.add reify", { pkg, dir })
       const tree = yield* reify({ dir, add: [pkg] })
       const first = tree.edgesOut.values().next().value?.to
       if (!first) {
@@ -178,7 +194,9 @@ export const layer = Layer.effect(
 
         for (const name of declared) {
           if (!locked.has(name)) {
+            log.info("dependencies outdated, reinstalling", { dir, add })
             yield* reify({ dir, add })
+            log.info("dependencies reinstalled", { dir })
             return
           }
         }
