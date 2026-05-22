@@ -5,6 +5,9 @@ import semver from "semver"
 import { Filesystem } from "@/util/filesystem"
 import { isRecord } from "@/util/record"
 import { Npm } from "@opencode-ai/core/npm"
+import * as Log from "@opencode-ai/core/util/log"
+
+const log = Log.create({ service: "plugin.shared" })
 
 // Old npm package names for plugins that are now built-in
 export const DEPRECATED_PLUGIN_PACKAGES = ["opencode-openai-codex-auth", "opencode-copilot-auth"]
@@ -192,13 +195,18 @@ export async function resolvePathPluginTarget(spec: string) {
 }
 
 export async function checkPluginCompatibility(target: string, opencodeVersion: string, pkg?: PluginPackage) {
-  if (!semver.valid(opencodeVersion) || semver.major(opencodeVersion) === 0) return
+  log.info("checkPluginCompatibility", { target, opencodeVersion, semver_valid: !!semver.valid(opencodeVersion), major: semver.valid(opencodeVersion) ? semver.major(opencodeVersion) : -1 })
+  if (!semver.valid(opencodeVersion) || semver.major(opencodeVersion) === 0) {
+    log.info("checkPluginCompatibility skip", { reason: "version not valid or major=0" })
+    return
+  }
   const hit = pkg ?? (await readPluginPackage(target).catch(() => undefined))
   if (!hit) return
   const engines = hit.json.engines
   if (!isRecord(engines)) return
   const range = engines.opencode
   if (typeof range !== "string") return
+  log.info("checkPluginCompatibility range", { range, opencodeVersion, satisfies: semver.satisfies(opencodeVersion, range) })
   if (!semver.satisfies(opencodeVersion, range)) {
     throw new Error(`Plugin requires opencode ${range} but running ${opencodeVersion}`)
   }
@@ -208,7 +216,9 @@ export async function resolvePluginTarget(spec: string) {
   if (isPathPluginSpec(spec)) return resolvePathPluginTarget(spec)
   const hit = parse(spec)
   const pkg = hit?.name && hit.raw === hit.name ? `${hit.name}@latest` : spec
+  log.info("npm.add plugin", { spec, pkg })
   const result = await Npm.add(pkg)
+  log.info("npm.add result", { spec, pkg, directory: result.directory })
   return result.directory
 }
 
@@ -225,7 +235,17 @@ export async function createPluginEntry(spec: string, target: string, kind: Plug
   const source = pluginSource(spec)
   const pkg =
     source === "npm" ? await readPluginPackage(target) : await readPluginPackage(target).catch(() => undefined)
+  log.info("createPluginEntry", {
+    spec,
+    target,
+    kind,
+    source,
+    pkg_dir: pkg?.dir,
+    pkg_exports: JSON.stringify(pkg?.json?.exports),
+    pkg_main: pkg?.json?.main,
+  })
   const entry = await resolvePluginEntrypoint(spec, target, kind, pkg)
+  log.info("resolvedPluginEntry", { spec, kind, entry: entry ?? "(none)" })
   return {
     spec,
     source,

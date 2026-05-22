@@ -360,6 +360,7 @@ export function Prompt(props: PromptProps) {
     mode: "normal" | "shell"
     extmarkToPartIndex: Map<number, number>
     interrupt: number
+    exitConfirm: number
     placeholder: number
   }>({
     placeholder: randomIndex(list().length),
@@ -370,6 +371,7 @@ export function Prompt(props: PromptProps) {
     mode: "normal",
     extmarkToPartIndex: new Map(),
     interrupt: 0,
+    exitConfirm: 0,
   })
 
   createEffect(
@@ -1511,6 +1513,7 @@ export function Prompt(props: PromptProps) {
                   e.preventDefault()
                   return
                 }
+
               }}
               onSubmit={() => {
                 // IME: double-defer so the last composed character (e.g. Korean
@@ -1754,20 +1757,9 @@ export function Prompt(props: PromptProps) {
               </Show>
               <Switch>
                 <Match when={store.mode === "normal"}>
-                  <Switch>
-                    <Match when={usage()}>
-                      {(item) => (
-                        <text fg={theme.textMuted} wrapMode="none">
-                          {[item().context, item().cost].filter(Boolean).join(" · ")}
-                        </text>
-                      )}
-                    </Match>
-                    <Match when={true}>
-                      <text fg={theme.text}>
-                        {agentShortcut()} <span style={{ fg: theme.textMuted }}>agents</span>
-                      </text>
-                    </Match>
-                  </Switch>
+                  <text fg={theme.text}>
+                    {agentShortcut()} <span style={{ fg: theme.textMuted }}>agents</span>
+                  </text>
                   <text fg={theme.text}>
                     {paletteShortcut()} <span style={{ fg: theme.textMuted }}>commands</span>
                   </text>

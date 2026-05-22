@@ -27,7 +27,10 @@ const CHANNEL = await (async () => {
   if (env.OPENCODE_CHANNEL) return env.OPENCODE_CHANNEL
   if (env.OPENCODE_BUMP) return "latest"
   if (env.OPENCODE_VERSION && !env.OPENCODE_VERSION.startsWith("0.0.0-")) return "latest"
-  return await $`git branch --show-current`.text().then((x) => x.trim())
+  const branch = await $`git branch --show-current`.text().then((x) => x.trim())
+  // If branch name is empty (e.g. detached HEAD), fall back to "local" to avoid
+  // generating an invalid version like "0.0.0--<timestamp>" (double dash).
+  return branch || "local"
 })()
 const IS_PREVIEW = CHANNEL !== "latest"
 
