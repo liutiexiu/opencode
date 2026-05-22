@@ -35,7 +35,7 @@ import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { createSessionTabs } from "@/pages/session/helpers"
-import { createTextFragment, getCursorPosition, setCursorPosition, setRangeEdge } from "./prompt-input/editor-dom"
+import { createPastedFragment, createTextFragment, getCursorPosition, setCursorPosition, setRangeEdge } from "./prompt-input/editor-dom"
 import { createPromptAttachments } from "./prompt-input/attachments"
 import { ACCEPTED_FILE_TYPES } from "./prompt-input/files"
 import {
@@ -701,7 +701,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     clearEditor()
     for (const part of parts) {
       if (part.type === "text") {
-        editorRef.appendChild(createTextFragment(part.content))
+        editorRef.appendChild(part.pasted ? createPastedFragment(part.content) : createTextFragment(part.content))
         continue
       }
       if (part.type === "file" || part.type === "agent") {
@@ -831,6 +831,30 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
         return
       }
 
+      if ("pasted" in el.dataset) {
+        flushText()
+        let pastedContent = ""
+        const extractText = (n: Node) => {
+          if (n.nodeType === Node.TEXT_NODE) {
+            pastedContent += n.textContent ?? ""
+            return
+          }
+          if (n.nodeType === Node.ELEMENT_NODE && (n as HTMLElement).tagName === "BR") {
+            pastedContent += "\n"
+            return
+          }
+          for (const child of Array.from(n.childNodes)) extractText(child)
+        }
+        for (const child of Array.from(el.childNodes)) extractText(child)
+        if (pastedContent.includes("\r")) pastedContent = pastedContent.replace(/\r\n?/g, "\n")
+        pastedContent = pastedContent.replace(/\u200B/g, "")
+        if (pastedContent) {
+          parts.push({ type: "text", pasted: true, content: pastedContent, start: position, end: position + pastedContent.length })
+          position += pastedContent.length
+        }
+        return
+      }
+
       for (const child of Array.from(el.childNodes)) {
         visit(child)
       }
@@ -942,7 +966,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     }
 
     if (part.type === "text") {
-      const fragment = createTextFragment(part.content)
+      const fragment = part.pasted ? createPastedFragment(part.content) : createTextFragment(part.content)
       const last = fragment.lastChild
       range.deleteContents()
       range.insertNode(fragment)
@@ -1361,6 +1385,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                 "w-full pl-3 pr-2 pt-2 text-14-regular text-text-strong focus:outline-none whitespace-pre-wrap": true,
                 "[&_[data-type=file]]:text-syntax-property": true,
                 "[&_[data-type=agent]]:text-syntax-type": true,
+                "[&_[data-pasted]]:bg-background-stronger [&_[data-pasted]]:rounded [&_[data-pasted]]:px-1 [&_[data-pasted]]:text-text-weak [&_[data-pasted]]:outline [&_[data-pasted]]:outline-1 [&_[data-pasted]]:outline-border-weak-base": true,
                 "font-mono!": store.mode === "shell",
               }}
               style={{ "padding-bottom": space }}
